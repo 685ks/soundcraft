@@ -5,7 +5,7 @@ owl-template framing (craftrules `standards/icon-design.md`): a full-bleed colou
 in three-quarter view with its bill open and its eye on the viewer, its breast and wing running off
 the bottom and right edges, three song arcs leaving the bill.
 
-This is a **placeholder** until the owner draws SoundCraft's icon in ArtCraft like the other apps'
+This is a **placeholder** until the owner draws SoundCraft's icon like the other apps'
 icons. Replace `icon.svg` and run `packaging/icons.sh`; nothing else needs to change.
 
 ## Palette
@@ -38,7 +38,7 @@ traced or copied. MIT OR Apache-2.0, like the code (see `ATTRIBUTION.md`).
 | `soundcraft-macos-512.png` | Runtime window/Dock icon on macOS (Apple grid margin) |
 | `soundcraft.icns` | macOS bundle icon |
 | `soundcraft.ico` | Windows icon (16–256 px), embedded in `soundcraft.exe` and used by the MSI |
-| `hicolor/<size>x<size>/apps/ai.storyteller.soundcraft.png` | Linux/FreeBSD icon theme, 16–512 px, plus `scalable/` |
+| `hicolor/<size>x<size>/apps/app.freedev.ainz.ks.SoundCraft.png` | Linux/FreeBSD icon theme, 16–512 px, plus `scalable/` |
 
 Regenerate everything with `packaging/icons.sh` (needs `resvg`, and `iconutil` on macOS for the
 `.icns`).

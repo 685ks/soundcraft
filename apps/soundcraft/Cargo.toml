@@ -15,6 +15,7 @@ workspace = true
 asio = ["soundcraft-playback/asio"]
 
 [dependencies]
+getrandom = "0.3"
 soundcraft-engine.workspace = true
 soundcraft-ui-egui.workspace = true
 soundcraft-playback.workspace = true

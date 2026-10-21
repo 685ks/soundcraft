@@ -98,7 +98,7 @@ every command is reachable from the CLI, the JSON control channel and MCP.
 
 Both use the method in craftrules `standards/progress-docs.md`. Each multiplies a weighted depth
 average by written-down discounts. Depths come from the [Feature areas](#feature-areas) table and
-the evidence there; issue numbers are `storytold/soundcraft` GitHub issues.
+the evidence there; issue numbers are `storytold/soundcraft` (upstream) GitHub issues.
 
 ### Mainstream practitioner: ~36 %
 

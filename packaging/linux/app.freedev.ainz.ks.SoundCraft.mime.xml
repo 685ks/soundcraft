@@ -6,7 +6,7 @@
   <mime-type type="application/x-soundcraft-session">
     <comment>SoundCraft session</comment>
     <sub-class-of type="application/json"/>
-    <icon name="ai.storyteller.soundcraft"/>
+    <icon name="app.freedev.ainz.ks.SoundCraft"/>
     <glob pattern="*.scraft"/>
   </mime-type>
 </mime-info>

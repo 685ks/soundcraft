@@ -21,6 +21,7 @@ soundcraft-mix.workspace = true
 soundcraft-engine.workspace = true
 soundcraft-playback.workspace = true
 soundcraft-video.workspace = true
+craft-tokens.workspace = true
 egui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -34,5 +35,7 @@ egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 workspace = true
 
 [build-dependencies]
+# Optional craft-fonts input (CRAFT_FONTS_DIR): Inter first for the house UI font.
+craft-fonts-build = { git = "https://github.com/685ks/craft-fonts", rev = "f28afbb766ccddc9cfd136b8cf0b451a24149e1b" }
 serde_json = { workspace = true }
 toml = "1"

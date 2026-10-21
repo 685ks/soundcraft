@@ -1,0 +1,13 @@
+# Packaging metadata read by the shared release workflow
+# (685ks/craft-actions/.github/workflows/release-rust-app.yml, called from
+# .github/workflows/release.yml). Asset names: soundcraft-<version>-<os>-<arch>[-portable].<ext>.
+id = "soundcraft"
+display_name = "SoundCraft"
+bundle_id = "app.freedev.ainz.ks.SoundCraft"
+publisher = "Arthavan Projects"
+description = "A digital audio workstation: record, edit and mix audio and MIDI, with a full mixer, plugins, sends and automation"
+categories = ["AudioVideo", "Audio", "Music"]
+icon_png = "assets/app-icon/hicolor/512x512/apps/app.freedev.ainz.ks.SoundCraft.png"
+icon_icns = "assets/app-icon/soundcraft.icns"
+icon_ico = "assets/app-icon/soundcraft.ico"
+license = "MIT OR Apache-2.0"

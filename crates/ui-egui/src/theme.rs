@@ -1,5 +1,10 @@
-//! Design tokens. Colours were chosen by eye to give a dark, studio-style look; they are ours.
+//! Design tokens. The default dark palette ("Arthavan Dark") is the Arthavan Projects house theme,
+//! built from `craft-tokens` (685ks/craft-libs): ink and muted text on near-black blue surfaces,
+//! a steel-blue accent, a gold playhead and the house status colours for meters and automation.
+//! The Light palette's colours were chosen by eye; they are ours.
 
+use craft_tokens::Rgba;
+use craft_tokens::color as house;
 use egui::{Color32, FontFamily, FontId};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -83,7 +88,7 @@ impl ThemeMode {
         match self {
             Self::System => "System",
             Self::Light => "Light",
-            Self::Dark => "Dark",
+            Self::Dark => "Arthavan Dark",
         }
     }
 
@@ -99,6 +104,34 @@ impl ThemeMode {
     pub fn parse(s: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|m| m.id().eq_ignore_ascii_case(s.trim()))
     }
+}
+
+/// The house accent for fills under text and for strokes: steel blue between the house
+/// `accent.low` and `accent.base`, dark enough for ink text and bright enough on the surfaces.
+const ACCENT: Rgba = mix(house::ACCENT_BASE, 64, house::ACCENT_LOW);
+
+/// An opaque house colour as an egui colour.
+const fn c(x: Rgba) -> Color32 {
+    Color32::from_rgb(x.r, x.g, x.b)
+}
+
+/// `top` at opacity `alpha` (0..=255) composited over opaque `base`.
+const fn mix(top: Rgba, alpha: u8, base: Rgba) -> Rgba {
+    const fn ch(t: u8, b: u8, a: u8) -> u8 {
+        let v = (t as u32 * a as u32 + b as u32 * (255 - a as u32) + 127) / 255;
+        if v > 255 { 255 } else { v as u8 }
+    }
+    Rgba::rgb(ch(top.r, base.r, alpha), ch(top.g, base.g, alpha), ch(top.b, base.b, alpha))
+}
+
+/// A translucent house colour (its own alpha) over opaque `base`.
+const fn over(top: Rgba, base: Rgba) -> Rgba {
+    mix(top, top.a, base)
+}
+
+/// `base` lifted by white at opacity `alpha`: the house surface-fill elevations.
+const fn lift(base: Rgba, alpha: u8) -> Rgba {
+    mix(Rgba::rgb(255, 255, 255), alpha, base)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -213,89 +246,90 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    /// The house palette, "Arthavan Dark" (see the module docs).
     pub const DARK: Tokens = Tokens {
-        window_bg: Color32::from_rgb(30, 30, 30),
-        panel_bg: Color32::from_rgb(37, 37, 38),
-        panel_bg2: Color32::from_rgb(44, 44, 45),
-        toolbar_bg: Color32::from_rgb(30, 30, 31),
-        toolbar_group: Color32::from_rgb(24, 24, 25),
-        border: Color32::from_rgb(14, 14, 14),
-        border_light: Color32::from_rgb(64, 64, 66),
+        window_bg: c(house::BG_BASE),
+        panel_bg: c(house::BG_SHEET),
+        panel_bg2: c(lift(house::BG_SHEET, 14)),
+        toolbar_bg: c(house::BG_SKY_BOTTOM),
+        toolbar_group: c(house::BG_BASE),
+        border: c(house::BG_SKY_TOP),
+        border_light: c(over(house::BORDER_LINE, house::BG_SHEET)),
         edge_light: Color32::from_rgba_premultiplied(20, 20, 20, 20),
-        text: Color32::from_rgb(214, 214, 214),
-        text_dim: Color32::from_rgb(150, 150, 152),
-        text_dark: Color32::from_rgb(16, 16, 16),
-        header_text: Color32::from_rgb(196, 196, 198),
-        counter_bg: Color32::from_rgb(4, 4, 4),
-        counter_text: Color32::from_rgb(104, 220, 120),
-        counter_label: Color32::from_rgb(200, 200, 200),
-        accent: Color32::from_rgb(64, 132, 196),
-        accent_dark: Color32::from_rgb(40, 92, 146),
-        mode_on: Color32::from_rgb(92, 196, 108),
-        mode_on_text: Color32::from_rgb(10, 30, 12),
-        mode_off_text: Color32::from_rgb(98, 196, 112),
-        button: Color32::from_rgb(58, 58, 60),
-        button_hi: Color32::from_rgb(78, 78, 80),
-        button_border: Color32::from_rgb(20, 20, 20),
-        name_field: Color32::from_rgb(208, 208, 208),
-        name_field_sel: Color32::from_rgb(232, 232, 232),
-        ruler_bg: Color32::from_rgb(40, 40, 41),
-        ruler_label_bg: Color32::from_rgb(40, 40, 41),
-        ruler_text: Color32::from_rgb(178, 178, 180),
-        ruler_tick: Color32::from_rgb(96, 96, 98),
-        tempo_ruler: Color32::from_rgb(52, 128, 88),
-        meter_ruler: Color32::from_rgb(44, 108, 140),
-        marker_ruler: Color32::from_rgb(46, 46, 48),
-        playlist_bg: Color32::from_rgb(36, 36, 37),
-        playlist_alt: Color32::from_rgb(40, 40, 41),
-        grid_line: Color32::from_rgb(52, 52, 54),
-        bar_line: Color32::from_rgb(66, 66, 70),
-        selection: Color32::from_rgba_premultiplied(40, 70, 110, 110),
-        playhead: Color32::from_rgb(232, 60, 50),
-        insertion: Color32::from_rgb(230, 230, 230),
-        solo: Color32::from_rgb(222, 196, 52),
+        text: c(house::TEXT_INK),
+        text_dim: c(house::TEXT_MUTED),
+        text_dark: c(house::TEXT_ON_ACCENT),
+        header_text: c(house::TEXT_STRONG),
+        counter_bg: c(Rgba::rgb(3, 4, 6)),
+        counter_text: c(house::STATUS_OK),
+        counter_label: c(house::TEXT_MUTED),
+        accent: c(ACCENT),
+        accent_dark: c(house::ACCENT_LOW),
+        mode_on: c(house::STATUS_OK),
+        mode_on_text: c(house::TEXT_ON_ACCENT),
+        mode_off_text: c(house::STATUS_OK),
+        button: c(lift(house::BG_SHEET, 22)),
+        button_hi: c(lift(house::BG_SHEET, 36)),
+        button_border: c(house::BG_BASE),
+        name_field: c(house::TEXT_STRONG),
+        name_field_sel: c(house::TEXT_INK),
+        ruler_bg: c(lift(house::BG_SHEET, 10)),
+        ruler_label_bg: c(lift(house::BG_SHEET, 10)),
+        ruler_text: c(house::TEXT_MUTED),
+        ruler_tick: c(mix(house::TEXT_FAINT, 160, house::BG_SHEET)),
+        tempo_ruler: c(mix(house::STATUS_OK, 90, house::BG_SHEET)),
+        meter_ruler: c(mix(house::ACCENT_BASE, 90, house::BG_SHEET)),
+        marker_ruler: c(lift(house::BG_SHEET, 16)),
+        playlist_bg: c(lift(house::BG_SHEET, 6)),
+        playlist_alt: c(lift(house::BG_SHEET, 12)),
+        grid_line: c(lift(house::BG_SHEET, 20)),
+        bar_line: c(lift(house::BG_SHEET, 32)),
+        selection: Color32::from_rgba_premultiplied(50, 64, 76, 90),
+        playhead: c(house::ACCENT_GOLD),
+        insertion: c(house::ACCENT_BRIGHT),
+        solo: c(house::STATUS_WARN),
         mute: Color32::from_rgb(232, 148, 40),
-        rec: Color32::from_rgb(214, 52, 46),
-        input: Color32::from_rgb(70, 170, 90),
-        auto_read: Color32::from_rgb(96, 200, 110),
-        auto_write: Color32::from_rgb(220, 70, 60),
-        auto_touch: Color32::from_rgb(230, 170, 50),
-        auto_latch: Color32::from_rgb(160, 120, 220),
-        meter_green: Color32::from_rgb(60, 200, 80),
-        meter_yellow: Color32::from_rgb(230, 210, 60),
-        meter_red: Color32::from_rgb(230, 50, 40),
-        fader_track: Color32::from_rgb(12, 12, 12),
-        strip_bg: Color32::from_rgb(46, 46, 48),
-        strip_section: Color32::from_rgb(36, 36, 38),
-        slot_bg: Color32::from_rgb(28, 28, 29),
-        automation_line: Color32::from_rgb(240, 240, 240),
-        menu_bar: Color32::from_rgb(22, 22, 23),
-        group_border: Color32::from_rgb(8, 8, 8),
-        mode_off: Color32::from_rgb(20, 36, 22),
-        counter_off: Color32::from_rgb(30, 50, 32),
-        counter_border: Color32::from_rgb(50, 50, 50),
-        counter_rule: Color32::from_rgb(40, 40, 40),
-        tool_bracket_off: Color32::from_rgb(64, 64, 66),
-        row_selected: Color32::from_rgb(52, 70, 96),
-        visible_dot: Color32::from_rgb(200, 200, 200),
-        big_counter_bg: Color32::from_rgb(0, 0, 0),
-        header_selected: Color32::from_rgb(52, 58, 66),
-        strip_selected: Color32::from_rgb(54, 58, 64),
-        marker_text: Color32::from_rgb(236, 236, 236),
-        playlist_lane: Color32::from_rgb(30, 30, 31),
-        universe_bg: Color32::from_rgb(18, 18, 19),
-        universe_view: Color32::from_rgb(255, 255, 255),
-        meter_bg: Color32::from_rgb(8, 8, 8),
-        meter_clip_off: Color32::from_rgb(60, 20, 20),
-        knob_bg: Color32::from_rgb(26, 26, 28),
-        knob_ring: Color32::from_rgb(150, 150, 154),
-        knob_pointer: Color32::from_rgb(230, 230, 230),
-        section_label: Color32::from_rgb(200, 200, 200),
-        slot_well: Color32::from_rgb(43, 43, 43),
-        slot_empty: Color32::from_rgb(39, 39, 39),
-        slot_face: [Color32::from_rgb(92, 92, 92), Color32::from_rgb(75, 75, 75)],
-        slot_bypassed: [Color32::from_rgb(66, 96, 146), Color32::from_rgb(50, 76, 120)],
-        slot_mark: Color32::from_rgb(159, 159, 159),
+        rec: c(house::TIER_RED),
+        input: c(house::TIER_GREEN),
+        auto_read: c(house::STATUS_OK),
+        auto_write: c(house::TIER_RED),
+        auto_touch: c(house::STATUS_WARN),
+        auto_latch: c(house::TIER_PURPLE_T1),
+        meter_green: c(house::STATUS_OK),
+        meter_yellow: c(house::STATUS_WARN),
+        meter_red: c(house::TIER_RED),
+        fader_track: c(house::BG_BASE),
+        strip_bg: c(lift(house::BG_SHEET, 14)),
+        strip_section: c(lift(house::BG_SHEET, 6)),
+        slot_bg: c(house::BG_SKY_BOTTOM),
+        automation_line: c(house::TEXT_INK),
+        menu_bar: c(house::BG_SKY_BOTTOM),
+        group_border: c(Rgba::rgb(2, 3, 5)),
+        mode_off: c(mix(house::STATUS_OK, 24, house::BG_BASE)),
+        counter_off: c(mix(house::STATUS_OK, 40, house::BG_BASE)),
+        counter_border: c(over(house::BORDER_LINE, house::BG_SHEET)),
+        counter_rule: c(lift(house::BG_BASE, 18)),
+        tool_bracket_off: c(over(house::BORDER_LINE, house::BG_SHEET)),
+        row_selected: c(mix(house::ACCENT_BASE, 60, house::BG_SHEET)),
+        visible_dot: c(house::TEXT_MUTED),
+        big_counter_bg: c(house::BG_BASE),
+        header_selected: c(mix(house::ACCENT_BASE, 40, lift(house::BG_SHEET, 14))),
+        strip_selected: c(mix(house::ACCENT_BASE, 40, lift(house::BG_SHEET, 14))),
+        marker_text: c(house::TEXT_INK),
+        playlist_lane: c(house::BG_SKY_BOTTOM),
+        universe_bg: c(house::BG_BASE),
+        universe_view: c(house::TEXT_INK),
+        meter_bg: c(house::BG_SKY_TOP),
+        meter_clip_off: c(mix(house::TIER_RED, 50, house::BG_BASE)),
+        knob_bg: c(house::BG_SKY_BOTTOM),
+        knob_ring: c(house::TEXT_FAINT),
+        knob_pointer: c(house::TEXT_INK),
+        section_label: c(house::TEXT_MUTED),
+        slot_well: c(lift(house::BG_SHEET, 14)),
+        slot_empty: c(lift(house::BG_SHEET, 10)),
+        slot_face: [c(lift(house::BG_SHEET, 60)), c(lift(house::BG_SHEET, 44))],
+        slot_bypassed: [c(mix(house::ACCENT_BASE, 110, house::BG_SHEET)), c(mix(house::ACCENT_BASE, 80, house::BG_SHEET))],
+        slot_mark: c(house::TEXT_MUTED),
     };
 
     pub const LIGHT: Tokens = Tokens {
@@ -402,6 +436,9 @@ pub fn wants_light(ctx: &egui::Context, mode: ThemeMode) -> bool {
     }
 }
 
+/// The house small corner radius, in whole points.
+const HOUSE_RADIUS: u8 = craft_tokens::radius::XS as u8;
+
 /// A track's header and lane backgrounds in the Edit window, tinted with its colour by `tint` (0..1).
 pub fn track_backgrounds(color: [u8; 3], selected: bool, tint: f32) -> (Color32, Color32) {
     let t = Tokens::current();
@@ -464,8 +501,9 @@ pub fn apply(ctx: &egui::Context, light: bool) {
     v.widgets.hovered.weak_bg_fill = t.button_hi;
     v.widgets.noninteractive.fg_stroke.color = t.text;
     v.widgets.inactive.fg_stroke.color = t.text;
-    v.window_corner_radius = egui::CornerRadius::same(6);
-    v.menu_corner_radius = egui::CornerRadius::same(4);
+    // House radii (craft-tokens `radius`): small for menus, twice that for windows.
+    v.window_corner_radius = egui::CornerRadius::same(HOUSE_RADIUS * 2);
+    v.menu_corner_radius = egui::CornerRadius::same(HOUSE_RADIUS);
     // Keep receiving native OS appearance changes even when our palette is manual. On macOS,
     // pinning egui's theme also pins the window appearance and hides later OS changes.
     ctx.set_theme(egui::ThemePreference::System);
@@ -504,6 +542,41 @@ mod tests {
         drop(app);
         // Other tests compete for the lock too, and some hold it for seconds: allow for a queue.
         assert!(rx.recv_timeout(std::time::Duration::from_secs(120)).is_ok(), "the palette lock must be released when every holder drops it");
+    }
+
+    /// WCAG contrast ratio of two opaque colours.
+    fn contrast(a: Color32, b: Color32) -> f32 {
+        let lum = |c: Color32| {
+            let lin = |v: u8| {
+                let v = f32::from(v) / 255.0;
+                if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+            };
+            0.2126 * lin(c.r()) + 0.7152 * lin(c.g()) + 0.0722 * lin(c.b())
+        };
+        let (x, y) = (lum(a) + 0.05, lum(b) + 0.05);
+        x.max(y) / x.min(y)
+    }
+
+    #[test]
+    fn the_default_dark_palette_is_the_house_theme_from_craft_tokens() {
+        let t = Tokens::DARK;
+        assert_eq!(ThemeMode::Dark.label(), "Arthavan Dark");
+        assert_eq!(t.window_bg, c(house::BG_BASE));
+        assert_eq!(t.panel_bg, c(house::BG_SHEET));
+        assert_eq!(t.text, c(house::TEXT_INK));
+        assert_eq!(t.text_dim, c(house::TEXT_MUTED));
+        assert_eq!(t.playhead, c(house::ACCENT_GOLD));
+        assert_eq!((t.meter_green, t.meter_yellow, t.meter_red), (c(house::STATUS_OK), c(house::STATUS_WARN), c(house::TIER_RED)));
+        // Readable text (WCAG AA) on every surface it sits on.
+        for bg in [t.window_bg, t.panel_bg, t.panel_bg2, t.toolbar_bg, t.button, t.button_hi, t.strip_bg, t.playlist_bg, t.ruler_bg] {
+            assert!(contrast(t.text, bg) >= 7.0, "ink on {bg:?}: {}", contrast(t.text, bg));
+            assert!(contrast(t.text_dim, bg) >= 4.5, "muted on {bg:?}: {}", contrast(t.text_dim, bg));
+        }
+        assert!(contrast(t.text, t.accent) >= 4.5, "ink on the accent: {}", contrast(t.text, t.accent));
+        assert!(contrast(t.text_dark, t.mode_on) >= 4.5);
+        assert!(contrast(t.text_dark, t.name_field) >= 4.5);
+        assert!(contrast(t.playhead, t.playlist_bg) >= 4.5);
+        assert!(contrast(t.counter_text, t.counter_bg) >= 4.5);
     }
 
     #[test]

@@ -7,6 +7,7 @@ Claude and other agents can make music with it.
 soundcraft-cli mcp                    # headless engine (no window, no audio device)
 soundcraft-cli mcp --demo             # headless, starting from the demo session
 soundcraft-cli mcp --automation-read-root DIR --automation-write-root DIR   # headless, confined to folders
+export SOUNDCRAFT_CONTROL_TOKEN_FILE="$HOME/.soundcraft-control.token"   # shared control token
 soundcraft --control 7801 &           # the desktop app…
 soundcraft-cli mcp --connect 7801     # …driven over MCP: same tools plus screenshots and clicks
 ```

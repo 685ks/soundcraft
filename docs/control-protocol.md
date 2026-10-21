@@ -35,6 +35,32 @@ Newline-delimited JSON over TCP on `127.0.0.1`. One request per line, one reply 
 
 Errors: `{"id": 1, "ok": false, "error": "bad parameters for `mix.volume`: no track named `Nope`"}`.
 
+## Authentication
+
+The listener binds to `127.0.0.1` only. Every connection must authenticate first: its first request is
+
+```json
+{"id": 0, "method": "auth", "params": {"token": "<64 hexadecimal digits>"}}
+{"id": 0, "ok": true, "result": {"authenticated": true}}
+```
+
+The token is compared in constant time. Any other first line (another method, a wrong token, an HTTP
+request from a web page) gets `{"ok": false, "error": "authentication required"}` and the
+connection is closed before anything runs.
+
+The app takes its token from `SOUNDCRAFT_CONTROL_TOKEN` (64 hex digits), else from the file named
+by `SOUNDCRAFT_CONTROL_TOKEN_FILE` (created with a fresh token, mode 0600, when it does not exist),
+else it makes a fresh token for this launch and prints it on standard error. A malformed token or an
+unreadable token file stops the launch (exit code 2). `soundcraft-cli app` and
+`soundcraft-cli mcp --connect` read the same two variables and authenticate each connection, so
+the simplest setup is one shared file:
+
+```sh
+export SOUNDCRAFT_CONTROL_TOKEN_FILE="$HOME/.soundcraft-control.token"
+soundcraft --demo --control 0 &
+soundcraft-cli mcp --connect 7801
+```
+
 ## Methods
 
 | Method | Params | What it does |
