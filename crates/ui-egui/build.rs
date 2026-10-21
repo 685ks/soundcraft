@@ -7,12 +7,17 @@
 //!   JSON says the entry was verified (`people_entry`).
 //!
 //! A missing or malformed file gives empty tables (or no names) and a warning.
+//!
+//! It also embeds the optional craft-fonts build input (`CRAFT_FONTS_DIR`; craftrules
+//! `standards/fonts.md`) as `craft_fonts.rs`: Inter, the house UI font, and the other scripts' UI
+//! faces. Unset, the list is empty and the UI uses egui's and the system's fonts.
 
 use std::fmt::Write as _;
 
 use serde_json::Value;
 
 fn main() {
+    craft_fonts_build::Builder::new().web_fonts(&[("Inter", "Regular")]).emit();
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contributors");
     let json = read(&dir.join("contributors.json"), "the About window shows no contributors", |t| {
         serde_json::from_str::<Value>(t).map_err(|e| e.to_string())

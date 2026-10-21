@@ -7,7 +7,7 @@ real work in SoundCraft. This is the work list: pick from the top. Rows marked *
 fail the core-workflow gate in [`roadmap.md`](roadmap.md#alpha-gate) and keep SoundCraft pre-alpha. Numbers and weights live in
 [`target-app-parity.md`](target-app-parity.md); the plan that orders these into milestones is
 [`roadmap.md`](roadmap.md). Hours are Opus 5.5 agent-hours (calibration in target-app-parity.md).
-Estimates marked "≈" are judgements; issue numbers are `storytold/soundcraft` GitHub issues.
+Estimates marked "≈" are judgements; issue numbers are `storytold/soundcraft` (upstream) GitHub issues.
 
 When you close a gap, delete its entry (or shrink it) in the same PR, and bump the timestamp.
 
@@ -167,8 +167,10 @@ cannot be hosted (#109): Avid's AAX SDK licence and PACE signing; owner decision
 
 ### G-14. Platforms and CI
 
-Only `freebsd.yml` and `windows-arm64.yml` run on pull requests, and only for manifest paths;
-nothing runs `cargo xtask ci` on PRs. Windows and Linux have startup and rendering reports
+`ci.yml` runs on every pull request: formatting, layering and asset checks, the core crates'
+tests on Linux, macOS and Windows, and the app, automation and UI unit tests on Linux. The full
+`cargo xtask ci` (clippy, every test, wasm) still runs only locally, and FreeBSD and Windows ARM64
+have no CI in this fork. Windows and Linux have startup and rendering reports
 (#41, #45, #107, #142). ≈ 20–40 h (a PR CI matrix plus runtime smoke tests on three OSes).
 
 ### G-15. Elastic Audio depth

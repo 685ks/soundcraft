@@ -1,8 +1,15 @@
-//! Fonts: egui's bundled defaults, plus the operating system's own UI fonts loaded at runtime when
-//! present (never redistributed). A "bold" family is always defined so the UI can use it.
+//! Fonts: the house UI font (Inter) and other scripts' faces from the optional craft-fonts build
+//! input (`CRAFT_FONTS_DIR`, embedded by `build.rs`), egui's bundled defaults, and the operating
+//! system's own UI fonts loaded at runtime when present (never redistributed). A "bold" family is
+//! always defined so the UI can use it.
 
 use egui::{FontData, FontDefinitions, FontFamily};
 use std::sync::Arc;
+
+/// The craft-fonts faces embedded at build time (empty without `CRAFT_FONTS_DIR`).
+mod craft {
+    include!(concat!(env!("OUT_DIR"), "/craft_fonts.rs"));
+}
 
 /// (path, ttc index) candidates for regular and bold UI text, by platform.
 const REGULAR: &[(&str, u32)] = &[
@@ -125,6 +132,7 @@ pub fn definitions() -> FontDefinitions {
         bold_family.insert(0, "system-regular".into());
     }
     fonts.families.insert(FontFamily::Name("bold".into()), bold_family);
+    add_craft_fonts(&mut fonts, craft::craft_font_order(craft::CraftFontRole::Ui).map(|f| (f.family, f.style, f.scripts, f.bytes)));
     if let Some(h) = load(HANGUL, "sans-serif:lang=ko", Some("ko")) {
         fonts.font_data.insert("system-hangul".into(), Arc::new(h));
         for family in fonts.families.values_mut() {
@@ -134,6 +142,34 @@ pub fn definitions() -> FontDefinitions {
     fonts
 }
 
+/// Add craft-fonts faces (family, style, scripts, bytes), in their UI fallback order. Latin faces
+/// (Inter) come first in the regular family, the house UI font; after the system bold face in the
+/// bold family (a variable font draws its default weight); every other face is a fallback at the end.
+fn add_craft_fonts<'a>(fonts: &mut FontDefinitions, faces: impl Iterator<Item = (&'a str, &'a str, &'a [&'a str], &'static [u8])>) {
+    let mut first = 0;
+    for (family, style, scripts, bytes) in faces {
+        if bytes.is_empty() {
+            continue;
+        }
+        let name = format!("craft-{family}-{style}");
+        fonts.font_data.insert(name.clone(), Arc::new(FontData::from_static(bytes)));
+        let latin = scripts.contains(&"Latn");
+        for (key, list) in fonts.families.iter_mut() {
+            if *key == FontFamily::Monospace && !latin {
+                list.push(name.clone());
+            } else if *key == FontFamily::Proportional && latin {
+                list.insert(first.min(list.len()), name.clone());
+            } else if *key != FontFamily::Monospace {
+                let at = if latin { 1.min(list.len()) } else { list.len() };
+                list.insert(at, name.clone());
+            }
+        }
+        if latin {
+            first += 1;
+        }
+    }
+}
+
 pub fn install(ctx: &egui::Context) {
     ctx.set_fonts(definitions());
 }
@@ -141,6 +177,30 @@ pub fn install(ctx: &egui::Context) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Inter (Latin) leads the regular family, follows the system bold face, and stays out of
+    /// monospace; another script's face is a fallback at the end of every family.
+    #[test]
+    fn craft_fonts_put_inter_first_and_other_scripts_last() {
+        let mut fonts = FontDefinitions::default();
+        fonts.families.insert(FontFamily::Name("bold".into()), vec!["system-bold".into(), "egui".into()]);
+        static FAKE: &[u8] = b"not parsed here";
+        add_craft_fonts(
+            &mut fonts,
+            [("Inter", "Regular", &["Latn", "Grek"][..], FAKE), ("Noto Sans JP", "Regular", &["Jpan"][..], FAKE)].into_iter(),
+        );
+        let family = |f: FontFamily| fonts.families.get(&f).cloned().unwrap_or_default();
+        assert_eq!(family(FontFamily::Proportional).first().map(String::as_str), Some("craft-Inter-Regular"));
+        assert_eq!(family(FontFamily::Proportional).last().map(String::as_str), Some("craft-Noto Sans JP-Regular"));
+        assert_eq!(family(FontFamily::Name("bold".into())), ["system-bold", "craft-Inter-Regular", "egui", "craft-Noto Sans JP-Regular"]);
+        assert!(!family(FontFamily::Monospace).contains(&"craft-Inter-Regular".to_string()));
+        assert_eq!(family(FontFamily::Monospace).last().map(String::as_str), Some("craft-Noto Sans JP-Regular"));
+        // Without the build input nothing changes.
+        let before = FontDefinitions::default();
+        let mut after = FontDefinitions::default();
+        add_craft_fonts(&mut after, std::iter::empty());
+        assert_eq!(before.families, after.families);
+    }
 
     #[test]
     fn hangul_candidates_cover_every_desktop_platform() {

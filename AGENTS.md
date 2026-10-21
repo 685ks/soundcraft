@@ -16,7 +16,7 @@ Standards and learnings shared across the crafting apps live in `../../craftrule
 - **Every bundled asset gets a row in [`ATTRIBUTION.md`](ATTRIBUTION.md)** (path, author, source, license) in the same commit that adds it. `cargo xtask assets` enforces this; CI fails otherwise.
 - Never copy files out of the Pro Tools bundle (`/Applications/Pro Tools.app`): no plugins, presets, icons, sounds, session templates or text. Observing the running app (screenshots kept under `plan/`, menu names) is fine; copying its resources is not.
 - Demo audio is synthesised in code (`crates/engine/src/demo.rs`). Demo and README media must be ours or public domain.
-- The ArtCraft trademarks in `docs/brand/` are the only exception, under `docs/brand/LICENSE-brand.txt`.
+- **No ArtCraft marks.** This repository is Arthavan Projects' fork of [storytold/soundcraft](https://github.com/storytold/soundcraft), not affiliated with or endorsed by ArtCraft: keep the ArtCraft name, wordmark and logos (and links to its website and Discord) out of it. `LICENSE-*` and `NOTICE` keep the upstream copyright line.
 
 ## Clean-room
 Pro Tools is installed on the dev machine and may be *observed* black-box: run it, use its UI with synthetic sessions, take screenshots by window id (`screencapture -l <id>`), stored only under `plan/protools/screenshots/`. Never read, disassemble or copy anything inside the Pro Tools bundle; never copy Avid icons, artwork, plugin names, presets, or wording beyond feature names. Never copy GPL/AGPL/LGPL code (Ardour, Audacity, LMMS, Freeverb sources…). Our plugins have our own names.
@@ -55,7 +55,7 @@ Parity is measured, not guessed: `crates/engine/catalog/menus.txt` lists the inc
 
 ## Running and looking at the app
 - `cargo run --release -p soundcraft -- --demo --control 0` (demo session + control channel on a free port; the port is printed).
-- Drive it: JSON lines over TCP, e.g. `{"id":1,"method":"engine.execute","params":{"command":"track.new","params":{"count":2,"format":"stereo"}}}`, then `{"id":2,"method":"ui.screenshot","params":{"path":"/tmp/shot.png"}}`. Methods: `crates/ui-egui/src/control.rs`, docs: `docs/control-protocol.md`.
+- Drive it: JSON lines over TCP; the first line is `{"method":"auth","params":{"token":…}}` with the token from `SOUNDCRAFT_CONTROL_TOKEN` / `SOUNDCRAFT_CONTROL_TOKEN_FILE` (or printed on stderr; `docs/control-protocol.md` › Authentication). Then e.g. `{"id":1,"method":"engine.execute","params":{"command":"track.new","params":{"count":2,"format":"stereo"}}}`, then `{"id":2,"method":"ui.screenshot","params":{"path":"/tmp/shot.png"}}`. Methods: `crates/ui-egui/src/control.rs`, docs: `docs/control-protocol.md`.
 - Offscreen UI render (no window, no focus stealing): `cargo run -p soundcraft-ui-egui --example ui_shot -- out.png [script.jsonl]`.
 - Headless: `soundcraft-cli run --demo --cmd 'mix.volume={"track":"Kick","db":-6}' --bounce out.wav`; MCP: `soundcraft-cli mcp [--connect PORT]`.
 - **For UI work, look at the result** (render, read the PNG) and compare with `plan/protools/screenshots/`.

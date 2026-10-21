@@ -11,13 +11,13 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
       Name="SoundCraft"
-      Manufacturer="Learning Machines LLC"
+      Manufacturer="Arthavan Projects"
       Version="$(var.Version)"
-      UpgradeCode="EE53D3E5-D0AE-40F9-808D-9417FDEBF61A"
+      UpgradeCode="C0D6D44F-F7A5-4A62-9C5F-22A9D596ACC1"
       Scope="perMachine"
       Compressed="yes"
       Language="1033">
-    <SummaryInformation Description="SoundCraft digital audio workstation" Manufacturer="Learning Machines LLC" />
+    <SummaryInformation Description="SoundCraft digital audio workstation" Manufacturer="Arthavan Projects" />
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
          (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"
@@ -26,9 +26,9 @@
 
     <Icon Id="SoundcraftIcon.ico" SourceFile="$(var.IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="SoundcraftIcon.ico" />
-    <Property Id="ARPURLINFOABOUT" Value="https://getartcraft.com/apps/soundcraft" />
-    <Property Id="ARPURLUPDATEINFO" Value="https://getartcraft.com/apps/soundcraft" />
-    <Property Id="ARPHELPLINK" Value="https://discord.gg/artcraft" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/685ks/soundcraft" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/685ks/soundcraft/releases" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/685ks/soundcraft/issues" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="SoundCraft" />

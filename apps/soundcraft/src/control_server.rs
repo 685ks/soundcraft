@@ -3,6 +3,11 @@
 //!
 //! Lines are bounded ([`MAX_LINE`]): a longer one is refused and the connection closed, without
 //! buffering the rest. So is the number of connections served at once ([`MAX_CONNECTIONS`]).
+//!
+//! Every connection must authenticate first: its first request is
+//! `{"method": "auth", "params": {"token": "<64 hex>"}}` with this launch's token
+//! ([`crate::control_token`]). Anything else gets [`AUTH_REQUIRED`] and the connection is closed,
+//! so another program on the machine (or a web page) can't drive the app.
 
 use serde_json::{Value, json};
 use soundcraft_ui_egui::ControlRequest;
@@ -22,10 +27,18 @@ const MAX_LINE: usize = soundcraft_engine::model::b64::MAX_DECODED_BYTES.div_cei
 const _: () = assert!(MAX_LINE <= 96 << 20);
 /// Connections served at once; further ones get an error line and are closed.
 const MAX_CONNECTIONS: usize = 16;
+/// The error a connection gets when its first request is not a good `auth`.
+pub const AUTH_REQUIRED: &str = "authentication required";
 
-pub fn start(port: u16, ctx: egui::Context) -> Receiver<ControlRequest> {
+/// Bind the control listener. Always the IPv4 loopback address, never a wildcard or a LAN address:
+/// the control channel must not be reachable from another machine.
+fn bind_loopback(port: u16) -> std::io::Result<TcpListener> {
+    TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
+}
+
+pub fn start(port: u16, token: String, ctx: egui::Context) -> Receiver<ControlRequest> {
     let (tx, rx) = channel::<ControlRequest>();
-    let listener = match TcpListener::bind(("127.0.0.1", port)) {
+    let listener = match bind_loopback(port) {
         Ok(l) => l,
         Err(e) => {
             log::error!("control server failed to bind 127.0.0.1:{port}: {e}");
@@ -35,7 +48,8 @@ pub fn start(port: u16, ctx: egui::Context) -> Receiver<ControlRequest> {
     let actual = listener.local_addr().map(|a| a.port()).unwrap_or(port);
     log::info!("control server listening on 127.0.0.1:{actual}");
     println!("SOUNDCRAFT_CONTROL_PORT={actual}");
-    let spawned = std::thread::Builder::new().name("soundcraft-control".into()).spawn(move || accept_loop(listener, tx, ctx));
+    let token: Arc<str> = token.into();
+    let spawned = std::thread::Builder::new().name("soundcraft-control".into()).spawn(move || accept_loop(listener, token, tx, ctx));
     if let Err(e) = spawned {
         log::error!("control thread failed: {e}");
     }
@@ -52,7 +66,7 @@ impl Drop for Slot {
     }
 }
 
-fn accept_loop(listener: TcpListener, tx: Sender<ControlRequest>, ctx: egui::Context) {
+fn accept_loop(listener: TcpListener, token: Arc<str>, tx: Sender<ControlRequest>, ctx: egui::Context) {
     let open = Arc::new(AtomicUsize::new(0));
     for mut stream in listener.incoming().flatten() {
         if open.fetch_add(1, Ordering::SeqCst) >= MAX_CONNECTIONS {
@@ -63,9 +77,10 @@ fn accept_loop(listener: TcpListener, tx: Sender<ControlRequest>, ctx: egui::Con
         let slot = Slot(Arc::clone(&open));
         let tx = tx.clone();
         let ctx = ctx.clone();
+        let token = Arc::clone(&token);
         let _ = std::thread::Builder::new().name("soundcraft-control-conn".into()).spawn(move || {
             let _slot = slot;
-            serve(stream, tx, ctx);
+            serve(stream, &token, tx, ctx);
         });
     }
 }
@@ -94,11 +109,17 @@ fn read_bounded_line(reader: &mut impl BufRead, buf: &mut Vec<u8>, max: usize) -
     Ok(true)
 }
 
-fn serve(stream: TcpStream, tx: Sender<ControlRequest>, ctx: egui::Context) {
+/// Whether a request authenticates with `token`.
+fn authenticates(method: &str, params: &Value, token: &str) -> bool {
+    method == "auth" && params.get("token").and_then(Value::as_str).is_some_and(|t| crate::control_token::matches(t, token))
+}
+
+fn serve(stream: TcpStream, token: &str, tx: Sender<ControlRequest>, ctx: egui::Context) {
     let Ok(read) = stream.try_clone() else { return };
     let mut out = stream;
     let mut reader = BufReader::new(read);
     let mut buf = Vec::new();
+    let mut authenticated = false;
     loop {
         match read_bounded_line(&mut reader, &mut buf, MAX_LINE) {
             Ok(true) => {}
@@ -118,6 +139,17 @@ fn serve(stream: TcpStream, tx: Sender<ControlRequest>, ctx: egui::Context) {
                 let id = msg.get("id").cloned().unwrap_or(Value::Null);
                 let method = msg.get("method").and_then(Value::as_str).unwrap_or("").to_string();
                 let params = msg.get("params").cloned().unwrap_or(json!({}));
+                if !authenticated {
+                    if !authenticates(&method, &params, token) {
+                        let _ = writeln!(out, "{}", json!({"id": id, "ok": false, "error": AUTH_REQUIRED})).and_then(|()| out.flush());
+                        break;
+                    }
+                    authenticated = true;
+                    if writeln!(out, "{}", json!({"id": id, "ok": true, "result": {"authenticated": true}})).is_err() {
+                        break;
+                    }
+                    continue;
+                }
                 let (req, rrx) = ControlRequest::new(method, params);
                 if tx.send(req).is_err() {
                     break;
@@ -128,6 +160,10 @@ fn serve(stream: TcpStream, tx: Sender<ControlRequest>, ctx: egui::Context) {
                     o.insert("id".into(), id);
                 }
                 r
+            }
+            Err(e) if !authenticated => {
+                let _ = writeln!(out, "{}", json!({"ok": false, "error": AUTH_REQUIRED, "detail": format!("bad JSON: {e}")}));
+                break;
             }
             Err(e) => json!({"ok": false, "error": format!("bad JSON: {e}")}),
         };
@@ -171,12 +207,14 @@ mod tests {
         assert!(state + request.to_string().len() <= MAX_LINE);
     }
 
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     /// The control server on a loopback port, with a stand-in UI that echoes each method.
     fn serve_echo() -> std::net::SocketAddr {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let listener = bind_loopback(0).unwrap();
         let addr = listener.local_addr().unwrap();
         let (tx, rx) = channel::<ControlRequest>();
-        std::thread::spawn(move || accept_loop(listener, tx, egui::Context::default()));
+        std::thread::spawn(move || accept_loop(listener, TOKEN.into(), tx, egui::Context::default()));
         std::thread::spawn(move || {
             for req in rx {
                 let _ = req.reply.send(json!({"ok": true, "method": req.method}));
@@ -190,8 +228,12 @@ mod tests {
         let addr = serve_echo();
         let mut c = TcpStream::connect(addr).unwrap();
         c.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-        c.write_all(b"{\"id\":3,\"method\":\"ping\"}\r\n\n{\"id\":4,\"method\":\"pong\"}\n").unwrap();
+        let auth = json!({"id": 0, "method": "auth", "params": {"token": TOKEN}});
+        c.write_all(format!("{auth}\n{{\"id\":3,\"method\":\"ping\"}}\r\n\n{{\"id\":4,\"method\":\"pong\"}}\n").as_bytes()).unwrap();
         let mut r = BufReader::new(c);
+        let mut line = String::new();
+        r.read_line(&mut line).unwrap();
+        assert!(line.contains("\"authenticated\":true"), "{line}");
         for (id, method) in [(3, "ping"), (4, "pong")] {
             let mut line = String::new();
             r.read_line(&mut line).unwrap();
@@ -211,5 +253,49 @@ mod tests {
         BufReader::new(&mut extra).read_line(&mut line).unwrap();
         assert!(line.contains("too many control connections"), "{line}");
         drop(held);
+    }
+
+    /// Every reply line on a fresh connection that sends `input`, until the server closes it.
+    fn exchange(addr: std::net::SocketAddr, input: &str) -> Vec<Value> {
+        let mut c = TcpStream::connect(addr).unwrap();
+        c.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        c.write_all(input.as_bytes()).unwrap();
+        let _ = c.shutdown(std::net::Shutdown::Write);
+        let mut text = String::new();
+        c.read_to_string(&mut text).unwrap();
+        text.lines().map(|l| serde_json::from_str(l).unwrap()).collect()
+    }
+
+    #[test]
+    fn the_first_request_must_authenticate() {
+        let addr = serve_echo();
+        let wrong = "f".repeat(64);
+        for first in [
+            json!({"id": 1, "method": "engine.execute", "params": {"command": "transport.play"}}),
+            json!({"id": 1, "method": "engine.execute", "params": {"token": TOKEN}}),
+            json!({"id": 1, "method": "auth"}),
+            json!({"id": 1, "method": "auth", "params": {"token": wrong}}),
+            json!({"id": 1, "method": "auth", "params": {"token": &TOKEN[..63]}}),
+            json!({"id": 1, "method": "auth", "params": {"token": format!("{TOKEN}0")}}),
+            json!({"id": 1, "method": "auth", "params": {"token": 5}}),
+        ] {
+            let r = exchange(addr, &format!("{first}\n{}\n", json!({"id": 2, "method": "ui.inspect"})));
+            assert_eq!(r.len(), 1, "{first}: only the refusal, then the connection is closed: {r:?}");
+            assert_eq!((r[0]["ok"].clone(), r[0]["error"].clone()), (json!(false), json!(AUTH_REQUIRED)), "{first}");
+        }
+        let r = exchange(addr, "GET / HTTP/1.1\r\n\r\n{\"id\":2,\"method\":\"ui.inspect\"}\n");
+        assert_eq!((r.len(), r[0]["error"].clone()), (1, json!(AUTH_REQUIRED)), "junk first is refused too");
+        let r = exchange(
+            addr,
+            &format!("{}\n{}\n", json!({"id": "a", "method": "auth", "params": {"token": TOKEN}}), json!({"id": 2, "method": "ui.inspect"})),
+        );
+        assert_eq!((r[0]["id"].clone(), r[0]["ok"].clone()), (json!("a"), json!(true)));
+        assert_eq!((r[1]["id"].clone(), r[1]["method"].clone()), (json!(2), json!("ui.inspect")));
+    }
+
+    #[test]
+    fn the_listener_is_bound_to_loopback_only() {
+        let listener = bind_loopback(0).unwrap();
+        assert_eq!(listener.local_addr().unwrap().ip(), std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     }
 }

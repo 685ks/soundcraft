@@ -4,7 +4,11 @@
 //!
 //! `--control <port>` (or `SOUNDCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control server
 //! (`0` picks a free port and prints it): `{"id":1,"method":"ui.inspect","params":{}}` →
-//! `{"id":1,"ok":true,"result":…}`. See `soundcraft_ui_egui::control` for the methods.
+//! `{"id":1,"ok":true,"result":…}`. See `soundcraft_ui_egui::control` for the methods. Each
+//! connection authenticates first with `{"method":"auth","params":{"token":"<64 hex>"}}`; the token
+//! comes from `SOUNDCRAFT_CONTROL_TOKEN`, else the file `SOUNDCRAFT_CONTROL_TOKEN_FILE` names
+//! (created when missing), else a fresh one printed on standard error
+//! (`docs/control-protocol.md` › Authentication).
 //!
 //! `log` records go to standard error and `<settings dir>/logs/soundcraft.log` (`RUST_LOG` sets the
 //! levels); see [`logging`].
@@ -13,6 +17,7 @@
 
 mod config;
 mod control_server;
+mod control_token;
 #[cfg(any(target_os = "windows", test))]
 mod graphics;
 mod logging;
@@ -199,7 +204,7 @@ fn app_icon() -> Option<egui::IconData> {
     #[cfg(target_os = "macos")]
     let png: &[u8] = include_bytes!("../../../assets/app-icon/soundcraft-macos-512.png");
     #[cfg(not(target_os = "macos"))]
-    let png: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.soundcraft.png");
+    let png: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/app.freedev.ainz.ks.SoundCraft.png");
     eframe::icon_data::from_png_bytes(png).map_err(|e| log::warn!("app icon: {e}")).ok()
 }
 
@@ -226,6 +231,26 @@ fn main() -> eframe::Result {
         .filter(|(i, a)| !(a.starts_with("--") || (i > &0 && args.get(i - 1).is_some_and(|p| p == "--control"))))
         .map(|(_, a)| a.clone())
         .collect();
+    // The control token, before the window opens: a bad token or token file stops the launch.
+    let control = match control_port {
+        None => None,
+        Some(port) => {
+            let env_token = std::env::var("SOUNDCRAFT_CONTROL_TOKEN").ok();
+            let env_file = std::env::var_os("SOUNDCRAFT_CONTROL_TOKEN_FILE").map(std::path::PathBuf::from);
+            match control_token::resolve(env_token, env_file) {
+                Ok((token, source)) => {
+                    if source == control_token::Source::Generated {
+                        eprintln!("soundcraft: control token for port {port}: {token}");
+                    }
+                    Some((port, token))
+                }
+                Err(e) => {
+                    eprintln!("soundcraft: {e}");
+                    std::process::exit(2);
+                }
+            }
+        }
+    };
     log::info!("SoundCraft {} ({} {})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
     // The log file lives in the settings directory; opened after the arguments, so `--version`
     // leaves no file behind. Records logged until now are written to it first. Runs without
@@ -254,7 +279,7 @@ fn main() -> eframe::Result {
             .with_maximized(prefs.window_maximized)
             .with_min_inner_size([960.0, 600.0])
             .with_drag_and_drop(true)
-            .with_app_id("ai.storyteller.soundcraft"),
+            .with_app_id("app.freedev.ainz.ks.SoundCraft"),
         ..Default::default()
     };
     if let Some(icon) = app_icon() {
@@ -275,8 +300,8 @@ fn main() -> eframe::Result {
             app.preset_dir = prefs_path().and_then(|p| p.parent().map(|d| d.join("Presets")));
             app.extra.ui_scale = prefs.ui_scale;
             app.ui = prefs;
-            if let Some(port) = control_port {
-                let rx = control_server::start(port, cc.egui_ctx.clone());
+            if let Some((port, token)) = control {
+                let rx = control_server::start(port, token, cc.egui_ctx.clone());
                 app = app.with_control(rx);
             }
             for f in &files {

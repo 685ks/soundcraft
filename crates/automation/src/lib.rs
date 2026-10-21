@@ -79,18 +79,38 @@ impl Backend for Headless {
     }
 }
 
-/// A TCP client for a running app's control channel.
+/// The control token from the environment: `SOUNDCRAFT_CONTROL_TOKEN`, else the file named by
+/// `SOUNDCRAFT_CONTROL_TOKEN_FILE`. `None` when neither is set (the app will refuse the connection).
+pub fn token_from_env() -> Result<Option<String>, String> {
+    if let Some(t) = std::env::var("SOUNDCRAFT_CONTROL_TOKEN").ok().map(|t| t.trim().to_string()).filter(|t| !t.is_empty()) {
+        return Ok(Some(t));
+    }
+    let Some(path) = std::env::var_os("SOUNDCRAFT_CONTROL_TOKEN_FILE").filter(|p| !p.is_empty()) else { return Ok(None) };
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("SOUNDCRAFT_CONTROL_TOKEN_FILE {}: {e}", std::path::Path::new(&path).display()))?;
+    Ok(Some(text.trim().to_string()))
+}
+
+/// A TCP client for a running app's control channel. Each connection first authenticates with the
+/// app's control token (`docs/control-protocol.md` › Authentication).
 pub struct Remote {
     addr: String,
     conn: Option<(TcpStream, BufReader<TcpStream>)>,
     next_id: u64,
+    /// The token sent as the first request on every connection, or why it couldn't be read.
+    token: Result<Option<String>, String>,
 }
 
 impl Remote {
-    /// `target` is a port (`7979`) or `host:port`.
+    /// `target` is a port (`7979`) or `host:port`. The token comes from [`token_from_env`].
     pub fn new(target: &str) -> Self {
         let addr = if target.contains(':') { target.to_string() } else { format!("127.0.0.1:{target}") };
-        Remote { addr, conn: None, next_id: 1 }
+        Remote { addr, conn: None, next_id: 1, token: token_from_env() }
+    }
+
+    /// Authenticate with `token` (`None`: send none) instead of the one from the environment.
+    pub fn with_token(mut self, token: Option<String>) -> Self {
+        self.token = Ok(token);
+        self
     }
 
     fn connect(&mut self) -> Result<(), String> {
@@ -102,7 +122,20 @@ impl Remote {
             TcpStream::connect_timeout(&sock, Duration::from_millis(800)).map_err(|e| format!("cannot reach SoundCraft at {}: {e}", self.addr))?;
         s.set_read_timeout(Some(Duration::from_secs(120))).map_err(|e| e.to_string())?;
         let r = s.try_clone().map_err(|e| e.to_string())?;
-        self.conn = Some((s, BufReader::new(r)));
+        let mut conn = (s, BufReader::new(r));
+        if let Some(token) = self.token.clone()? {
+            writeln!(conn.0, "{}", json!({"id": "auth", "method": "auth", "params": {"token": token}})).map_err(|e| e.to_string())?;
+            let mut buf = String::new();
+            conn.1.read_line(&mut buf).map_err(|e| format!("authenticating with {}: {e}", self.addr))?;
+            let ok = serde_json::from_str::<Value>(&buf).ok().and_then(|v| v.get("ok").and_then(Value::as_bool)) == Some(true);
+            if !ok {
+                return Err(format!(
+                    "SoundCraft at {} refused the control token; set SOUNDCRAFT_CONTROL_TOKEN or SOUNDCRAFT_CONTROL_TOKEN_FILE to the app's token",
+                    self.addr
+                ));
+            }
+        }
+        self.conn = Some(conn);
         Ok(())
     }
 
@@ -175,7 +208,7 @@ mod tests {
 
     #[test]
     fn remote_reports_unreachable() {
-        let mut r = Remote::new("127.0.0.1:1");
+        let mut r = Remote::new("127.0.0.1:1").with_token(None);
         assert!(r.call("session.inspect", json!({})).is_err());
     }
 
@@ -204,7 +237,7 @@ mod tests {
     #[test]
     fn remote_does_not_repeat_a_mutation_after_a_lost_reply() {
         let (addr, seen) = fake_app(vec![false, true]);
-        let mut r = Remote::new(&addr);
+        let mut r = Remote::new(&addr).with_token(None);
         let err = r.call("engine.execute", json!({"command": "track.new"})).unwrap_err();
         assert!(err.contains("may or may not have been executed"), "{err}");
         assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 1);
@@ -213,8 +246,53 @@ mod tests {
     #[test]
     fn remote_retries_a_read_after_a_lost_reply() {
         let (addr, seen) = fake_app(vec![false, true]);
-        let mut r = Remote::new(&addr);
+        let mut r = Remote::new(&addr).with_token(None);
         assert!(r.call("session.inspect", json!({})).is_ok());
         assert_eq!(seen.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    /// A fake app that reads every line of one connection and answers each with `reply`.
+    fn recording_app(reply: Value) -> (String, std::thread::JoinHandle<Vec<Value>>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        let worker = std::thread::spawn(move || {
+            let (sock, _) = listener.accept().unwrap();
+            let mut out = sock.try_clone().unwrap();
+            let mut seen = Vec::new();
+            for line in BufReader::new(sock).lines() {
+                let Ok(line) = line else { break };
+                let msg: Value = serde_json::from_str(&line).unwrap();
+                let mut r = reply.clone();
+                r["id"] = msg["id"].clone();
+                seen.push(msg);
+                if writeln!(out, "{r}").is_err() || r["ok"] == false {
+                    break;
+                }
+            }
+            seen
+        });
+        (addr, worker)
+    }
+
+    #[test]
+    fn each_connection_authenticates_first() {
+        let (addr, worker) = recording_app(json!({"ok": true, "result": {"pong": true}}));
+        let token = "ab".repeat(32);
+        let mut r = Remote::new(&addr).with_token(Some(token.clone()));
+        assert_eq!(r.call("ui.inspect", json!({})).unwrap(), json!({"pong": true}));
+        drop(r);
+        let seen = worker.join().unwrap();
+        assert_eq!((seen[0]["method"].clone(), seen[0]["params"]["token"].clone()), (json!("auth"), json!(token)));
+        assert_eq!(seen[1]["method"], "ui.inspect");
+    }
+
+    #[test]
+    fn a_refused_token_is_reported() {
+        let (addr, worker) = recording_app(json!({"ok": false, "error": "authentication required"}));
+        let mut r = Remote::new(&addr).with_token(Some("0".repeat(64)));
+        let e = r.call("ui.inspect", json!({})).unwrap_err();
+        assert!(e.contains("SOUNDCRAFT_CONTROL_TOKEN"), "{e}");
+        drop(r);
+        assert_eq!(worker.join().unwrap().len(), 1, "nothing is sent after the refusal");
     }
 }
