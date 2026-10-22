@@ -55,7 +55,7 @@ where things are.
   </tr>
   <tr>
     <td width="50%"><img alt="Volume automation drawn on the Pad track, with the Memory Locations and Big Counter windows open" src="docs/images/automation.png"></td>
-    <td width="50%"><img alt="The SoundCraft app icon: a singing nightingale on a teal field" src="assets/app-icon/soundcraft-1024.png" width="70%"></td>
+    <td width="50%"><img alt="The SoundCraft app icon: a teal waveform on a dark teal tile" src="assets/app-icon/soundcraft-1024.png" width="70%"></td>
   </tr>
   <tr>
     <td><b>Automation and markers.</b> Breakpoint automation for volume, pan, mute, sends and every plugin parameter, written live in Write, Touch and Latch, plus memory locations and a big counter.</td>

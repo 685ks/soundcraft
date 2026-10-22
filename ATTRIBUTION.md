@@ -29,10 +29,10 @@ and, at runtime, the operating system's own UI fonts when available (never redis
 
 | Path | Author | Source | License |
 |---|---|---|---|
-| `assets/app-icon/icon.svg` | SoundCraft contributors | original (hand-placed SVG paths; placeholder app icon) | MIT OR Apache-2.0 |
-| `assets/app-icon/soundcraft-1024.png` | SoundCraft contributors | original, rendered from `icon.svg` | MIT OR Apache-2.0 |
-| `assets/app-icon/soundcraft-macos-512.png` | SoundCraft contributors | original, rendered from `icon.svg` | MIT OR Apache-2.0 |
-| `assets/app-icon/soundcraft.icns` | SoundCraft contributors | original, rendered from `icon.svg` | MIT OR Apache-2.0 |
-| `assets/app-icon/soundcraft.ico` | SoundCraft contributors | original, rendered from `icon.svg` | MIT OR Apache-2.0 |
-| `assets/app-icon/hicolor/` | SoundCraft contributors | original, rendered from `icon.svg` (16–512 px PNGs and the scalable SVG) | MIT OR Apache-2.0 |
+| `assets/app-icon/icon.svg` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
+| `assets/app-icon/soundcraft-1024.png` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
+| `assets/app-icon/soundcraft-macos-512.png` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
+| `assets/app-icon/soundcraft.icns` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
+| `assets/app-icon/soundcraft.ico` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
+| `assets/app-icon/hicolor/` | SoundCraft contributors | original work: drawn in code as SVG in the Arthavan Projects house style (`#98e1df` glyph on a `#234d4c` to `#0a1a19` tile), master `assets/app-icon/icon.svg` | MIT OR Apache-2.0 |
 | `docs/images/` | SoundCraft contributors | screenshots of SoundCraft rendered from the synthesised demo session | MIT OR Apache-2.0 |
