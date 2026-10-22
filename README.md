@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  A complete digital audio workstation that runs natively on macOS, Windows, Linux and FreeBSD, and
+  A complete digital audio workstation that runs natively on Windows, and
   in the browser. Multitrack editing, a full mixer with plugins, sends and automation, MIDI, recording
   and bouncing, and every action scriptable from the command line or by an AI agent.
 </p>
@@ -15,7 +15,7 @@
 <p align="center">
   <img alt="Rust" src="https://img.shields.io/badge/100%25-Rust-b7410e?style=flat-square&logo=rust">
   <img alt="egui" src="https://img.shields.io/badge/UI-egui-14a9c4?style=flat-square">
-  <img alt="Platforms" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20FreeBSD%20%C2%B7%20Web-0b7385?style=flat-square">
+  <img alt="Platforms" src="https://img.shields.io/badge/Windows%20%C2%B7%20Web-0b7385?style=flat-square">
   <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square">
   <img alt="Status: pre-alpha" src="https://img.shields.io/badge/status-pre--alpha-orange?style=flat-square">
 </p>
@@ -264,31 +264,6 @@ and web backend defaults are unchanged.
 DirectX 12 shaders are compiled with FXC, which is part of Windows, so no `dxcompiler.dll` or
 `dxil.dll` is needed ("Parent device is lost" at start, #185). `$env:WGPU_DX12_COMPILER = "dxc"`
 (or `"auto"`) selects wgpu's DXC handling again for troubleshooting.
-
-### macOS
-
-| Build | File | Notes |
-|---|---|---|
-| App, universal (Apple silicon + Intel) | `soundcraft-<ver>-macos-universal.dmg` | Signed and notarized |
-| Command-line tool, universal | `soundcraft-cli-<ver>-macos-universal.zip` | Signed and notarized |
-
-### Linux
-
-| Format | x86_64 | aarch64 (ARM64) | Notes |
-|---|---|---|---|
-| AppImage | `soundcraft-<ver>-linux-x86_64.AppImage` | `soundcraft-<ver>-linux-aarch64.AppImage` | Runs anywhere; updates itself with [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) (`.zsync` files) |
-| Flatpak | `soundcraft-<ver>-linux-x86_64.flatpak` | `soundcraft-<ver>-linux-aarch64.flatpak` | Sandboxed; `flatpak install --user <file>` |
-| Debian/Ubuntu | `soundcraft-<ver>-linux-x86_64.deb` | `soundcraft-<ver>-linux-aarch64.deb` | |
-| Fedora/RHEL/openSUSE | `soundcraft-<ver>-linux-x86_64.rpm` | `soundcraft-<ver>-linux-aarch64.rpm` | |
-| Tarball | `soundcraft-<ver>-linux-x86_64.tar.gz` | `soundcraft-<ver>-linux-aarch64.tar.gz` | Unpack anywhere |
-
-RISC-V (riscv64): `soundcraft-<ver>-linux-riscv64.tar.gz`, a tarball only (glibc 2.39+, e.g. Ubuntu 24.04).
-
-### FreeBSD
-
-| Build | File |
-|---|---|
-| x86_64 | `soundcraft-<ver>-freebsd-x86_64.tar.gz` |
 
 ### Web (WebAssembly)
 
