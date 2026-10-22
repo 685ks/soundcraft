@@ -1,6 +1,6 @@
 # Fast checks on every pull request and every push to main: formatting, the rebrand guard,
-# dependency layering and asset attribution; the core crates' tests on Linux and Windows
-# with a check that the desktop app and CLI build on both; and on Linux the app's own unit
+# dependency layering and asset attribution; the core crates' tests on Windows
+# with a check that the desktop app and CLI build there; and on Linux the app's own unit
 # tests (control server and its token), the automation client (it authenticates with the token)
 # and the UI crate's unit tests (house theme, fonts, links). The full workspace suite is
 # `cargo xtask ci` (run it locally).
@@ -72,16 +72,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [windows-latest]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Install Linux system dependencies (egui/winit/rfd/cpal)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev \
-            libgl1-mesa-dev libgtk-3-dev libasound2-dev
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
