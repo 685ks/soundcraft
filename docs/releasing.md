@@ -126,8 +126,8 @@ environment, ruleset and secrets for a new repo: craftrules `release/signing-set
 
 ## Icons
 
-`assets/app-icon/icon.svg` is the canonical icon: a **placeholder** singing nightingale, drawn as
-original SVG in the three-colour icon palette (ink, paper, SoundCraft teal `#14a9c4`); see
+`assets/app-icon/icon.svg` is the canonical icon: a teal waveform glyph in the Arthavan Projects
+house style, on a dark teal tile, drawn as original SVG; see
 `assets/app-icon/README.md`. `packaging/icons.sh` regenerates the 1024 px PNG, the macOS 512 px
 window icon, the `.icns`, the `.ico` (packed by `cargo xtask ico`) and the hicolor PNGs from it.
 It needs `resvg`, plus `iconutil` on macOS. The outputs are committed, so packaging never needs
